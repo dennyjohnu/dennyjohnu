@@ -1,0 +1,39 @@
+import pandas as pd
+import datetime
+
+
+df = pd.read_csv('example_data_2019_v1.csv',index_col=False)
+df.sort_values(by=['User_ID','Action_time'],inplace=True)
+df["count_total_url"] = " "
+df["count_unique_url"] = " "
+df["session_duration"] = " "
+df["session_number"] = " "
+df["session_start_time"] = df["Action_time"]
+session=1
+for ind in df.index:
+    if ind ==df.index.max():
+        if df['User_ID'][ind]==df['User_ID'][ind-1]:
+            df['session_number'][ind] = session
+        else:
+            session=session+1
+            df['session_number'][ind]=session
+    else:
+        if df['User_ID'][ind]==df['User_ID'][ind+1]:
+            df['session_number'][ind] = session
+            if (datetime.datetime.strptime(df['Action_time'][ind + 1],'%Y-%m-%dT%H:%M:%S.%f%z') - datetime.datetime.strptime(df['Action_time'][ind], '%Y-%m-%dT%H:%M:%S.%f%z')).total_seconds() > 300:
+                session = session + 1
+                df['session_number'][ind] = session
+                df['session_duration'][ind] = datetime.datetime.strptime(df['Action_time'][ind + 1],'%Y-%m-%dT%H:%M:%S.%f%z') - datetime.datetime.strptime(df['Action_time'][ind], '%Y-%m-%dT%H:%M:%S.%f%z')
+            else:
+                df['session_number'][ind] = session
+                df['session_duration'][ind] = datetime.datetime.strptime(df['Action_time'][ind + 1],'%Y-%m-%dT%H:%M:%S.%f%z') - datetime.datetime.strptime(df['Action_time'][ind], '%Y-%m-%dT%H:%M:%S.%f%z')
+        else:
+            session = session + 1
+            df['session_number'][ind]=session
+            df['session_duration'][ind]='0:01:00.000000'
+Sessions = df.groupby("session_number")
+for name, group in Sessions:
+    for row_index, row in group.iterrows():
+        df['count_total_url'][row_index]=group['URL'].count()
+        df['count_unique_url'][row_index]=group['URL'].nunique()
+df.groupby("session_number").first().to_csv('summary_data_2019_v1.csv',columns=['User_ID','session_start_time','session_duration','count_total_url','count_unique_url'])
